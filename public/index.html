@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notes</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #1e293b; --panel-2: #273449; --text: #e2e8f0; --muted: #94a3b8;
+      --accent: #14b8a6; --warn: #f59e0b; --danger: #ef4444; --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px 16px; background: var(--bg); color: var(--text);
+           font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .container { max-width: 640px; margin: auto; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 1.6rem; letter-spacing: .02em; }
+    #health { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    #health i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+    #health.ok i { background: var(--accent); }
+    #health.bad i { background: var(--danger); }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+            padding: 16px; margin-bottom: 14px; }
+    input, textarea { width: 100%; padding: 10px; margin-bottom: 10px; font: inherit; color: var(--text);
+                      background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; }
+    input:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    button { padding: 8px 14px; border: 0; border-radius: 6px; cursor: pointer; font: inherit;
+             font-size: .9rem; color: #04201c; font-weight: 600; }
+    .save { background: var(--accent); }
+    .edit { background: var(--warn); }
+    .delete { background: var(--danger); color: #fff; }
+    .cancel { background: var(--muted); }
+    .note h3 { margin: 0 0 6px; }
+    .note p { margin: 0 0 12px; color: var(--muted); white-space: pre-wrap; }
+    .empty { text-align: center; color: var(--muted); }
+    #error { display: none; background: #7f1d1d; color: #fecaca; padding: 10px 14px;
+             border-radius: 8px; margin-bottom: 14px; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Notes</h1>
+      <div id="health"><i></i><span>checking…</span></div>
+    </header>
+
+    <div id="error"></div>
+
+    <div class="card">
+      <input id="title" placeholder="Title" maxlength="200">
+      <textarea id="content" placeholder="Content" rows="3"></textarea>
+      <button class="save" id="saveBtn" onclick="saveNote()">Add note</button>
+      <button class="cancel" id="cancelBtn" style="display:none" onclick="resetForm()">Cancel</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <script>
+    let editingId = null;
+
+    function showError(msg) {
+      const box = document.getElementById('error');
+      box.textContent = msg;
+      box.style.display = msg ? 'block' : 'none';
+    }
+
+    async function api(url, options) {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        let msg = 'Request failed (' + res.status + ')';
+        try { msg = (await res.json()).error || msg; } catch (e) {}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    async function checkHealth() {
+      const el = document.getElementById('health');
+      try {
+        await api('/health');
+        el.className = 'ok';
+        el.lastElementChild.textContent = 'API + database healthy';
+      } catch (e) {
+        el.className = 'bad';
+        el.lastElementChild.textContent = 'unhealthy';
+      }
+    }
+
+    async function loadNotes() {
+      const list = document.getElementById('list');
+      try {
+        const notes = await api('/notes');
+        showError('');
+        list.innerHTML = '';
+        if (!notes.length) {
+          const empty = document.createElement('div');
+          empty.className = 'card empty';
+          empty.textContent = 'No notes yet. Add your first one above.';
+          list.appendChild(empty);
+          return;
+        }
+        notes.forEach(n => {
+          const div = document.createElement('div');
+          div.className = 'card note';
+
+          const h3 = document.createElement('h3');
+          h3.textContent = n.title;
+          const p = document.createElement('p');
+          p.textContent = n.content || '';
+
+          const edit = document.createElement('button');
+          edit.className = 'edit';
+          edit.textContent = 'Edit';
+          edit.onclick = () => startEdit(n);
+
+          const del = document.createElement('button');
+          del.className = 'delete';
+          del.textContent = 'Delete';
+          del.onclick = () => deleteNote(n.id);
+
+          div.append(h3, p, edit, ' ', del);
+          list.appendChild(div);
+        });
+      } catch (e) {
+        showError('Could not load notes: ' + e.message);
+      }
+    }
+
+    async function saveNote() {
+      const title = document.getElementById('title').value.trim();
+      const content = document.getElementById('content').value.trim();
+      if (!title) { alert('Please enter a title'); return; }
+
+      const url = editingId ? '/notes/' + editingId : '/notes';
+      const method = editingId ? 'PUT' : 'POST';
+      try {
+        await api(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content })
+        });
+        resetForm();
+        loadNotes();
+      } catch (e) {
+        showError('Could not save note: ' + e.message);
+      }
+    }
+
+    function startEdit(note) {
+      editingId = note.id;
+      document.getElementById('title').value = note.title;
+      document.getElementById('content').value = note.content || '';
+      document.getElementById('saveBtn').textContent = 'Update note';
+      document.getElementById('cancelBtn').style.display = 'inline-block';
+      window.scrollTo(0, 0);
+    }
+
+    async function deleteNote(id) {
+      if (!confirm('Delete this note?')) return;
+      try {
+        await api('/notes/' + id, { method: 'DELETE' });
+        loadNotes();
+      } catch (e) {
+        showError('Could not delete note: ' + e.message);
+      }
+    }
+
+    function resetForm() {
+      editingId = null;
+      document.getElementById('title').value = '';
+      document.getElementById('content').value = '';
+      document.getElementById('saveBtn').textContent = 'Add note';
+      document.getElementById('cancelBtn').style.display = 'none';
+    }
+
+    loadNotes();
+    checkHealth();
+    setInterval(checkHealth, 10000);
+  </script>
+</body>
+</html>

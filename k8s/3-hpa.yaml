@@ -18,4 +18,4 @@ spec:
           averageUtilization: 50
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300   # wait 60s of low load before removing pods (default is 300s)
+      stabilizationWindowSeconds: 300   # wait 300s of low load before removing pods

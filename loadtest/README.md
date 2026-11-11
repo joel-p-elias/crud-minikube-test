@@ -1,4 +1,4 @@
-# Load tests (Deliverable 3)
+# Load test K6 and Locust
 
 | File | Tool | What it does |
 |---|---|---|

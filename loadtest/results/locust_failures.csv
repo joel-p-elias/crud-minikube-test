@@ -1,0 +1,6 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+DELETE,DELETE /notes/:id,RemoteDisconnected('Remote end closed connection without response'),1,2026-11-11T09:37:12Z,2026-11-11T09:37:12Z
+PUT,PUT /notes/:id,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",19,2026-11-11T09:37:14Z,2026-11-11T09:37:18Z
+DELETE,DELETE /notes/:id,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",24,2026-11-11T09:37:14Z,2026-11-11T09:37:21Z
+POST,POST /notes,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",4804,2026-11-11T09:36:56Z,2026-11-11T09:38:57Z
+GET,GET /notes/:id,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",9,2026-11-11T09:37:14Z,2026-11-11T09:37:15Z

@@ -1,0 +1,94 @@
+# MariaDB: persistent storage + Deployment + Service named "db"
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # ReadWriteOnce volume: old pod must stop before the new one mounts it
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11.4
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: MARIADB_ROOT_PASSWORD
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: MARIADB_PASSWORD
+            - name: MARIADB_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: notes-config
+                  key: DB_NAME
+            - name: MARIADB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: notes-config
+                  key: DB_USER
+          readinessProbe:               # receive traffic only when MariaDB accepts connections
+            exec:
+              command: ["healthcheck.sh", "--connect", "--innodb_initialized"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:                # restart the container if MariaDB stops answering
+            exec:
+              command: ["healthcheck.sh", "--connect"]
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: mariadb-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mariadb-data
+          persistentVolumeClaim:
+            claimName: mariadb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db                  # the app connects to host "db" (DB_HOST)
+spec:
+  type: ClusterIP           # internal only: nothing outside the cluster needs the database
+  selector:
+    app: db
+  ports:
+    - port: 3306
+      targetPort: 3306

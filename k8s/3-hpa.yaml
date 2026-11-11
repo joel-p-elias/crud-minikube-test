@@ -1,0 +1,23 @@
+# HPA: scale the notes Deployment between 1 and 5 pods, targeting 50% CPU.
+# Needs the metrics-server addon:  minikube addons enable metrics-server
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notes-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notes
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization       # % of the pod's CPU *request* (50m) -> scale up above 25m average
+          averageUtilization: 50
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300   # wait 60s of low load before removing pods (default is 300s)

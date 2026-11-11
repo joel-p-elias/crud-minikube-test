@@ -1,5 +1,3 @@
-# HPA: scale the notes Deployment between 1 and 5 pods, targeting 50% CPU.
-# Needs the metrics-server addon:  minikube addons enable metrics-server
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
